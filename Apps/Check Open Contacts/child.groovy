@@ -33,10 +33,11 @@
  *
  *-------------------------------------------------------------------------------------------------------------------
  *
- *  Last Update: 06/01/2019
+ *  Last Update: 12/04/2019
  *
  *  Changes:
  *
+ *  V2.6.0 - Added 'hsmStatus' trigger
  *  V2.5.0 - Added additonal (2nd) switch for restriction & fixed other restriction bugs
  *  V2.4.1 - Debug restrictions
  *  V2.4.0 - added disable apps code
@@ -90,7 +91,7 @@ def mainPage() {
 	dynamicPage(name: "mainPage") {
 	preCheck()
 	section() {
-            input "triggerMode", "enum", required: true, title: "Select Trigger Type", submitOnChange: true,  options: ["Button", "Mode Change", "Nest Thermostat - Heating", "Nest Thermostat - Cooling", "Standard Thermostat - Heating", "Standard Thermostat - Cooling", "Switch", "Time", "Water Sensor"] 
+            input "triggerMode", "enum", required: true, title: "Select Trigger Type", submitOnChange: true,  options: ["Button", "HSM Status Change", "Mode Change", "Nest Thermostat - Heating", "Nest Thermostat - Cooling", "Standard Thermostat - Heating", "Standard Thermostat - Cooling", "Switch", "Time", "Water Sensor"] 
             if(triggerMode == "Switch"){input "switch2", "capability.switch", title: "Select Trigger Device", required: true, multiple: false}
             if(triggerMode == "Water Sensor"){input "water1", "capability.waterSensor", title: "Select Trigger Device", required: true, multiple: false}
             if(triggerMode == "Mode Change"){input "newMode1", "mode", title: "Action when changing to this mode",  required: true, multiple: false}
@@ -99,10 +100,11 @@ def mainPage() {
             	input "buttonNumber", "enum", title: "Enter Button Number", required: true, options: ["1", "2", "3", "4", "5"] 
             }
             if(triggerMode == "Time"){input (name: "runTime", title: "Time to run", type: "time",  required: true)}            
-             if(triggerMode == "Nest Thermostat - Heating" ){input "nestDevice", "capability.thermostat", title: "Select Trigger Device",  required: true}  
-             if(triggerMode == "Nest Thermostat - Cooling"){input "nestDevice", "capability.thermostat", title: "Select Trigger Device",  required: true} 
+            if(triggerMode == "Nest Thermostat - Heating" ){input "nestDevice", "capability.thermostat", title: "Select Trigger Device",  required: true}  
+            if(triggerMode == "Nest Thermostat - Cooling"){input "nestDevice", "capability.thermostat", title: "Select Trigger Device",  required: true} 
             if(triggerMode == "Standard Thermostat - Heating"){input "statDevice", "capability.thermostat", title: "Select Trigger Device",  required: true} 
-            if(triggerMode == "Standard Thermostat - Cooling"){input "statDevice", "capability.thermostat", title: "Select Trigger Device",  required: true} 
+            if(triggerMode == "Standard Thermostat - Cooling"){input "statDevice", "capability.thermostat", title: "Select Trigger Device",  required: true}
+            if(triggerMode == "HSM Status Change"){input "hsmNewStatus", "enum", title: "Action when changing to this HSM status", required: true, multiple: true, options: ["armingAway", "armingHome", "armingNight", "armedAway", "armedHome", "armedNight", "disarmed", "allDisarmed"]}
     		}  
 	section(){input "sensors", "capability.contactSensor", title: "Contact Sensors to check", multiple: true}
 	section() { 
@@ -237,6 +239,7 @@ def subscribeNow() {
     if(triggerMode == "Nest Thermostat - Cooling"){subscribe(nestDevice, "thermostatOperatingState.cooling", evtHandler)}
 	if(triggerMode == "Standard Thermostat - Heating"){subscribe(statDevice, "thermostatMode.heat", evtHandler)}
     if(triggerMode == "Standard Thermostat - Cooling"){subscribe(statDevice, "thermostatMode.cool", evtHandler)}
+	if(triggerMode == "HSM Status Change"){subscribe(location, "hsmStatus", hsmStatusHandler )}
     subscribe(sensors, "contact", contactHandler) 
 	state.timer = 'yes'
 }
@@ -275,7 +278,23 @@ def modeChangeHandler(evt){
     }
   }
 }
-    
+
+def hsmStatusHandler(evt){
+	state.hsmStatusNow = evt.value
+	state.hsmStatusRequired = hsmNewStatus
+	LOGDEBUG("hsmStatusRequired = $state.hsmStatusRequired - current HSM Status = $state.hsmStatusNow")  
+	if (evt.isStateChange){
+	LOGDEBUG("State Change Occured!")   
+	if(state.hsmStatusRequired.contains(state.hsmStatusNow)){  
+	LOGDEBUG("HSM Status - YES a match")
+	evtHandler(evt)  
+      }
+	else { 
+   	LOGDEBUG("HSM Status is now $state.hsmStatusNow")
+	LOGDEBUG("HSM Status - NOT a match")
+    }
+  }
+}    
     
     
 def talkNow1() {
@@ -925,19 +944,9 @@ def setDefaults(){
 
 
 def setVersion(){
-		state.version = "2.5.0"	 
+		state.version = "2.6.0"	 
 		state.InternalName = "CheckContactsChild"
     	state.ExternalName = "Check Open Contacts Child"
 		state.preCheckMessage = "This app is designed to announce if any contacts are open when an event is triggered - It can also turn on other switches if any open or all closed"
     	state.CobraAppCheck = "checkcontacts.json"
 }
-
-
-
-
-
-
-
-
-
-
